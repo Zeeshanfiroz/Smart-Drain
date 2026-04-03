@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DrainGuard — Smart Sewage Detection & Prevention System</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     LOGIN PAGE
+══════════════════════════════════════════════ -->
+<div id="loginPage">
+  <div class="login-card">
+    <div class="login-emblem">🌊</div>
+    <div class="login-title">DRAIN<span>GUARD</span></div>
+    <div class="login-sub">Municipal Officer Portal</div>
+    <div class="login-hindi">नगर पालिका अधिकारी पोर्टल</div>
+
+    <!-- FIX: inline error replaces jarring alert() -->
+    <div class="form-error" id="loginError"></div>
+
+    <label class="form-label">Employee ID / कर्मचारी आईडी</label>
+    <input class="form-input" type="text" id="empId" placeholder="e.g. MCD-2024-1042">
+
+    <label class="form-label">City / शहर</label>
+    <select class="form-input" id="citySelect">
+      <option>Delhi NCR</option>
+      <option>Mumbai</option>
+      <option>Kolkata</option>
+      <option>Chennai</option>
+      <option>Bengaluru</option>
+    </select>
+
+    <label class="form-label">Ward / वार्ड</label>
+    <select class="form-input" id="wardSelect">
+      <option>Ward 42 — Yamuna Nagar</option>
+      <option>Ward 18 — Sadar Bazaar</option>
+      <option>Ward 31 — Karol Bagh</option>
+    </select>
+
+    <button class="login-btn" onclick="doLogin()">LOGIN / लॉगिन करें →</button>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     LOGOUT CONFIRMATION MODAL
+     FIX: replaces instant logout — shows who is
+     currently logged in and asks for confirmation
+══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="logoutModal">
+  <div class="modal-box">
+    <div class="modal-icon">🔐</div>
+    <div class="modal-title">CONFIRM LOGOUT</div>
+    <div class="modal-sub">
+      You are logged in as <span class="modal-officer-name" id="officerNameModal">Officer</span>.<br>
+      All unsaved changes will be lost. Are you sure you want to switch accounts?<br>
+      <span style="font-family:'Noto Sans Devanagari',sans-serif;font-size:12px;color:var(--muted);">क्या आप लॉगआउट करना चाहते हैं?</span>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="cancelLogout()">CANCEL / रद्द करें</button>
+      <button class="modal-confirm" onclick="confirmLogout()">LOGOUT →</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     MAIN APP
+══════════════════════════════════════════════ -->
+<div id="mainApp">
+<div class="layout">
+
+  <!-- FIX: Mobile sidebar overlay — tap to close -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+  <!-- ─── SIDEBAR ─── -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-brand">DRAIN<span>GUARD</span></div>
+      <div class="sidebar-officer">
+        <div class="officer-name" id="officerName">Officer</div>
+        <div class="officer-ward">WARD 42 · DELHI NCR</div>
+        <div class="live-dot-wrap"><div class="ldot"></div>LIVE MONITORING</div>
+      </div>
+    </div>
+
+    <!-- FIX: nav items use data-page attribute — no fragile index lookups -->
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')">
+        <span class="nav-icon">🏠</span>Dashboard
+      </button>
+      <button class="nav-item" data-page="map" onclick="showPage('map')">
+        <span class="nav-icon">🗺️</span>Drain Map
+      </button>
+      <button class="nav-item" data-page="alerts" onclick="showPage('alerts')">
+        <span class="nav-icon">🚨</span>Alerts
+        <span class="nav-badge">3</span>
+      </button>
+      <button class="nav-item" data-page="phases" onclick="showPage('phases')">
+        <span class="nav-icon">🔄</span>Phase Tracker
+      </button>
+      <button class="nav-item" data-page="dispatch" onclick="showPage('dispatch')">
+        <span class="nav-icon">👷</span>Send Workers
+      </button>
+      <button class="nav-item" data-page="report" onclick="showPage('report')">
+        <span class="nav-icon">📋</span>Daily Report
+      </button>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <!-- FIX: logout now shows a confirmation modal -->
+      <button class="logout-btn" onclick="doLogout()">⬅ Logout / लॉगआउट</button>
+    </div>
+  </div><!-- /sidebar -->
+
+
+  <!-- ─── CONTENT ─── -->
+  <div class="content">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <!-- FIX: hamburger for mobile -->
+        <button class="hamburger" onclick="openSidebar()">☰</button>
+        <div>
+          <div class="topbar-title" id="pageTitle">TODAY'S OVERVIEW / आज का सारांश</div>
+          <div class="topbar-sub" id="pageDate">—</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topClock">--:--</div>
+        <div style="position:relative;cursor:pointer;font-size:20px;" onclick="showPage('alerts')">
+          🔔
+          <div style="position:absolute;top:0;right:0;width:8px;height:8px;background:var(--red);border-radius:50%;border:2px solid var(--bg);"></div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════
+         PAGE: DASHBOARD
+    ═══════════════════════════════ -->
+    <div class="page active" id="page-dashboard">
+
+      <div class="alert-banner">
+        <div class="ab-icon">⚠️</div>
+        <div class="ab-text">
+          <div class="ab-title">URGENT: 2 DRAINS ABOUT TO OVERFLOW — IMMEDIATE ACTION NEEDED</div>
+          <div class="ab-sub">Yamuna Nagar Sec 7 (94% full) and Market Zone (88% full) — gates auto-closed by system</div>
+          <div class="ab-hindi">यमुना नगर सेक्टर 7 और मार्केट जोन को तुरंत कर्मचारियों की जरूरत है</div>
+        </div>
+        <button class="ab-btn" onclick="showPage('dispatch')">SEND WORKERS →</button>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card" style="--c:var(--accent)">
+          <span class="stat-emoji">🔌</span>
+          <div class="stat-num">24</div>
+          <div class="stat-lbl">Total Drains Active</div>
+          <div class="stat-lbl-h">कुल सक्रिय नालियाँ</div>
+        </div>
+        <div class="stat-card" style="--c:var(--red)">
+          <span class="stat-emoji">🔴</span>
+          <div class="stat-num">2</div>
+          <div class="stat-lbl">Urgent — Send Now!</div>
+          <div class="stat-lbl-h">तुरंत भेजें</div>
+        </div>
+        <div class="stat-card" style="--c:var(--yellow)">
+          <span class="stat-emoji">🟡</span>
+          <div class="stat-num">5</div>
+          <div class="stat-lbl">Keep Watching</div>
+          <div class="stat-lbl-h">नज़र रखें</div>
+        </div>
+        <div class="stat-card" style="--c:var(--green)">
+          <span class="stat-emoji">✅</span>
+          <div class="stat-num">3</div>
+          <div class="stat-lbl">Cleaned Today</div>
+          <div class="stat-lbl-h">आज साफ किया</div>
+        </div>
+      </div>
+
+      <div class="g3r">
+
+        <!-- LEFT: Drain list -->
+        <div>
+          <div class="section-title">Problems Right Now / अभी की समस्याएं</div>
+          <div style="font-size:11px;color:var(--accent);margin-bottom:8px;font-family:'Share Tech Mono',monospace;opacity:0.7;">
+            👆 CLICK ANY DRAIN TO SEE ITS LIVE SENSORS →
+          </div>
+          <div class="drain-cards">
+
+            <div class="drain-card dc-urgent selected" data-drain="D-04" onclick="selectDrain('D-04')">
+              <div class="dc-icon">🚨</div>
+              <div class="dc-info">
+                <div class="dc-name">D-04 — Yamuna Nagar, Sector 7</div>
+                <div class="dc-prob">Drain is 94% full. May overflow in 18 minutes!</div>
+                <div class="dc-hindi">नाली 94% भरी है। 18 मिनट में ओवरफ्लो हो सकता है!</div>
+                <div class="phase-pills">
+                  <span class="pill pill-done">✅ Solid Waste</span>
+                  <span class="pill pill-active">🔄 Human Waste</span>
+                  <span class="pill pill-pending">⏳ Bio-Enzyme</span>
+                  <span class="pill pill-pending">⏳ Chemical Check</span>
+                </div>
+              </div>
+              <div class="dc-right">
+                <div class="dc-level" style="color:var(--red)">94%</div>
+                <button class="action-btn btn-red" onclick="event.stopPropagation();sendWorker('D-04','Yamuna Nagar')">🚀 SEND WORKER</button>
+              </div>
+            </div>
+
+            <div class="drain-card dc-urgent" data-drain="D-09" onclick="selectDrain('D-09')">
+              <div class="dc-icon">🚨</div>
+              <div class="dc-info">
+                <div class="dc-name">D-09 — Market Zone</div>
+                <div class="dc-prob">88% full. Chemical smell detected. Very dangerous!</div>
+                <div class="dc-hindi">रासायनिक बदबू आ रही है। बहुत खतरनाक!</div>
+                <div class="phase-pills">
+                  <span class="pill pill-active">🔄 Solid Waste</span>
+                  <span class="pill pill-pending">⏳ Human Waste</span>
+                  <span class="pill pill-pending">⏳ Bio-Enzyme</span>
+                  <span class="pill pill-pending">⏳ Chemical Check</span>
+                </div>
+              </div>
+              <div class="dc-right">
+                <div class="dc-level" style="color:var(--red)">88%</div>
+                <button class="action-btn btn-red" onclick="event.stopPropagation();sendWorker('D-09','Market Zone')">🚀 SEND WORKER</button>
+              </div>
+            </div>
+
+            <div class="drain-card dc-warning" data-drain="D-06" onclick="selectDrain('D-06')">
+              <div class="dc-icon">⚠️</div>
+              <div class="dc-info">
+                <div class="dc-name">D-06 — Industrial Area</div>
+                <div class="dc-prob">Water is dirty. Bio-enzyme treatment running automatically.</div>
+                <div class="dc-hindi">पानी गंदा है। बायो-एंजाइम उपचार चल रहा है।</div>
+                <div class="phase-pills">
+                  <span class="pill pill-done">✅ Solid Waste</span>
+                  <span class="pill pill-done">✅ Human Waste</span>
+                  <span class="pill pill-active">🔄 Bio-Enzyme</span>
+                  <span class="pill pill-pending">⏳ Chemical Check</span>
+                </div>
+              </div>
+              <div class="dc-right">
+                <div class="dc-level" style="color:var(--yellow)">71%</div>
+                <button class="action-btn btn-yellow" onclick="event.stopPropagation();showPage('phases')">👁 MONITOR</button>
+              </div>
+            </div>
+
+            <div class="drain-card dc-routine" data-drain="D-01" onclick="selectDrain('D-01')">
+              <div class="dc-icon">✅</div>
+              <div class="dc-info">
+                <div class="dc-name">D-01 — Sector 3</div>
+                <div class="dc-prob">All clean. All 4 phases done. River safe.</div>
+                <div class="dc-hindi">सब साफ। नदी सुरक्षित।</div>
+                <div class="phase-pills">
+                  <span class="pill pill-done">✅ Solid Waste</span>
+                  <span class="pill pill-done">✅ Human Waste</span>
+                  <span class="pill pill-done">✅ Bio-Enzyme</span>
+                  <span class="pill pill-done">✅ Chemical Check</span>
+                </div>
+              </div>
+              <div class="dc-right">
+                <div class="dc-level" style="color:var(--green)">22%</div>
+                <button class="action-btn btn-green" onclick="event.stopPropagation();">✅ ALL CLEAR</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- RIGHT: Sensors + Chart -->
+        <div style="display:flex;flex-direction:column;gap:16px;">
+
+          <div class="panel">
+            <div class="panel-hdr">
+              <div class="panel-title" id="sensorTitle">D-04 Live Sensors</div>
+              <span class="pbadge pb-red" id="sensorBadge">CRITICAL</span>
+            </div>
+            <div class="panel-body">
+              <div class="gauges-grid">
+
+                <!-- FIX: gauge-val and gauge-unit are separate elements -->
+                <div class="gauge-card" id="g-level">
+                  <div class="gauge-hdr">
+                    <div class="gauge-name">Level</div>
+                    <div class="gauge-val" style="color:var(--red)">94<span class="gauge-unit">%</span></div>
+                  </div>
+                  <div class="gauge-bar"><div class="gauge-fill" style="width:94%;background:var(--red)"></div></div>
+                  <div class="gauge-range"><span>0%</span><span>100%</span></div>
+                </div>
+
+                <div class="gauge-card" id="g-ph">
+                  <div class="gauge-hdr">
+                    <div class="gauge-name">pH</div>
+                    <div class="gauge-val" style="color:var(--red)">5.2</div>
+                  </div>
+                  <div class="gauge-bar"><div class="gauge-fill" style="width:37%;background:var(--red)"></div></div>
+                  <div class="gauge-range"><span>0</span><span>14</span></div>
+                </div>
+
+                <div class="gauge-card" id="g-turbidity">
+                  <div class="gauge-hdr">
+                    <div class="gauge-name">Turbidity</div>
+                    <div class="gauge-val" style="color:var(--orange)">340<span class="gauge-unit">NTU</span></div>
+                  </div>
+                  <div class="gauge-bar"><div class="gauge-fill" style="width:68%;background:var(--orange)"></div></div>
+                  <div class="gauge-range"><span>0</span><span>500</span></div>
+                </div>
+
+                <div class="gauge-card" id="g-gas">
+                  <div class="gauge-hdr">
+                    <div class="gauge-name">Gas (H₂S)</div>
+                    <div class="gauge-val" style="color:var(--yellow)">78<span class="gauge-unit">ppm</span></div>
+                  </div>
+                  <div class="gauge-bar"><div class="gauge-fill" style="width:78%;background:var(--yellow)"></div></div>
+                  <div class="gauge-range"><span>0</span><span>100</span></div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-hdr">
+              <div class="panel-title" id="chartTitle">24Hr Level Trend · D-04</div>
+              <span class="pbadge pb-red">↑ RISING</span>
+            </div>
+            <div class="panel-body" style="padding:14px;">
+              <div class="chart-area">
+                <svg class="chart" viewBox="0 0 300 140" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="rg" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" id="chartAreaStop" stop-color="#ff3d3d" stop-opacity="0.25"/>
+                      <stop offset="100%" stop-color="#ff3d3d" stop-opacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  <!-- grid lines -->
+                  <line x1="0" y1="35"  x2="300" y2="35"  stroke="#1c2a34" stroke-width="1"/>
+                  <line x1="0" y1="70"  x2="300" y2="70"  stroke="#1c2a34" stroke-width="1"/>
+                  <line x1="0" y1="105" x2="300" y2="105" stroke="#1c2a34" stroke-width="1"/>
+                  <!-- critical threshold -->
+                  <line x1="0" y1="22" x2="300" y2="22" stroke="#ff3d3d" stroke-width="1" stroke-dasharray="4,3" opacity="0.45"/>
+                  <text x="4" y="19" fill="#ff3d3d" font-size="7" font-family="Share Tech Mono,monospace">CRITICAL 80%</text>
+                  <!-- FIX: area path now built by JS using pointsToArea() — closes correctly -->
+                  <path id="chartArea" d="" fill="url(#rg)"/>
+                  <path id="chartPath" d="" fill="none" stroke="#ff3d3d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle id="chartDot" cx="300" cy="10" r="4" fill="#ff3d3d"/>
+                  <text x="0"   y="135" fill="#4a6070" font-size="8" font-family="Share Tech Mono,monospace">00:00</text>
+                  <text x="265" y="135" fill="#4a6070" font-size="8" font-family="Share Tech Mono,monospace">NOW</text>
+                  <text id="chartPct" x="283" y="8" fill="#ff3d3d" font-size="9" font-family="Rajdhani,sans-serif" font-weight="700"></text>
+                </svg>
+              </div>
+              <div class="ml-box" id="mlBox">
+                <div class="ml-label">🧠 AI PREDICTION</div>
+                <div class="ml-text" id="mlText"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div><!-- /dashboard -->
+
+
+    <!-- ═══════════════════════════════
+         PAGE: MAP
+    ═══════════════════════════════ -->
+    <div class="page" id="page-map">
+      <div class="panel" style="margin-bottom:18px;">
+        <div class="panel-hdr">
+          <div class="panel-title">Drain Network — Ward 42, Delhi NCR</div>
+          <span class="pbadge pb-red">2 CRITICAL</span>
+        </div>
+        <div class="panel-body">
+          <div class="map-wrap">
+            <div class="map-grid-bg"></div>
+            <div class="map-pin pin-red"    style="left:57%;top:38%"><div class="pin-body"><span>🚨</span></div><div class="pin-lbl">D-04 · 94%</div></div>
+            <div class="map-pin pin-red"    style="left:74%;top:46%"><div class="pin-body"><span>🚨</span></div><div class="pin-lbl">D-09 · 88%</div></div>
+            <div class="map-pin pin-yellow" style="left:36%;top:42%"><div class="pin-body"><span>⚠️</span></div><div class="pin-lbl">D-06 · 71%</div></div>
+            <div class="map-pin pin-yellow" style="left:46%;top:25%"><div class="pin-body"><span>⚠️</span></div><div class="pin-lbl">D-02 · 68%</div></div>
+            <div class="map-pin pin-green"  style="left:20%;top:36%"><div class="pin-body"><span>✅</span></div><div class="pin-lbl">D-01 · 22%</div></div>
+            <div class="map-pin pin-green"  style="left:62%;top:22%"><div class="pin-body"><span>✅</span></div><div class="pin-lbl">D-05 · 30%</div></div>
+            <div class="map-pin pin-green"  style="left:82%;top:30%"><div class="pin-body"><span>✅</span></div><div class="pin-lbl">D-07 · 18%</div></div>
+            <div class="river-strip"><div class="river-lbl">~ YAMUNA RIVER ~</div></div>
+            <div class="map-legend">
+              <div class="leg-item"><div class="leg-dot" style="background:var(--red)"></div>Urgent</div>
+              <div class="leg-item"><div class="leg-dot" style="background:var(--yellow)"></div>Watch</div>
+              <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div>Clean</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="section-title">Tap a problem drain to send worker</div>
+      <div class="drain-cards">
+        <div class="drain-card dc-urgent">
+          <div class="dc-icon">📍</div>
+          <div class="dc-info">
+            <div class="dc-name">D-04 — Yamuna Nagar, Sector 7</div>
+            <div class="dc-prob">Near Govt School Gate No. 2 · Behind the market</div>
+            <div class="dc-hindi">सरकारी स्कूल गेट 2 के पास · बाजार के पीछे</div>
+          </div>
+          <div class="dc-right">
+            <div class="dc-level" style="color:var(--red)">94%</div>
+            <button class="action-btn btn-red" onclick="sendWorker('D-04','Yamuna Nagar')">🚀 SEND WORKER</button>
+          </div>
+        </div>
+        <div class="drain-card dc-urgent">
+          <div class="dc-icon">📍</div>
+          <div class="dc-info">
+            <div class="dc-name">D-09 — Main Bazaar Road, Market Zone</div>
+            <div class="dc-prob">Near vegetable market entrance · Chemical waste smell</div>
+            <div class="dc-hindi">सब्जी मंडी के पास · रासायनिक बदबू</div>
+          </div>
+          <div class="dc-right">
+            <div class="dc-level" style="color:var(--red)">88%</div>
+            <button class="action-btn btn-red" onclick="sendWorker('D-09','Market Zone')">🚀 SEND WORKER</button>
+          </div>
+        </div>
+      </div>
+    </div><!-- /map -->
+
+
+    <!-- ═══════════════════════════════
+         PAGE: ALERTS
+         FIX: data-severity + data-filter for working filters
+         FIX: "Mark Seen" calls markAlertSeen() to update badge
+    ═══════════════════════════════ -->
+    <div class="page" id="page-alerts">
+      <div class="alert-filters">
+        <button class="filter-btn active-f" data-filter="all">All Alerts</button>
+        <button class="filter-btn" data-filter="critical">🔴 Urgent</button>
+        <button class="filter-btn" data-filter="medium">🟡 Today</button>
+        <button class="filter-btn" data-filter="resolved">✅ Resolved</button>
+      </div>
+      <div class="alert-list">
+
+        <div class="alert-item" data-severity="critical">
+          <div>
+            <div class="asev asev-critical">🔴 CRITICAL</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:6px;font-family:'Share Tech Mono',monospace">2 MIN AGO</div>
+          </div>
+          <div class="a-content">
+            <div class="a-loc">D-04 — Yamuna Nagar, Sector 7</div>
+            <div class="a-desc">Drain is 94% full. It will overflow in about 18 minutes. Sewage will reach Yamuna river. Gate has been auto-closed by the system.</div>
+            <div class="a-hindi">नाली 94% भरी है। 18 मिनट में नदी तक पहुँच सकती है।</div>
+            <div class="a-meta"><span>📍 Sector 7</span><span>🕐 2 min ago</span><span>🤖 Gate auto-closed</span></div>
+          </div>
+          <div class="a-actions">
+            <button class="btn-sm bsm-red" onclick="sendWorker('D-04','Sec 7')">🚀 Send Worker</button>
+            <button class="btn-sm bsm-mute" onclick="markAlertSeen(this)">Mark Seen</button>
+          </div>
+        </div>
+
+        <div class="alert-item" data-severity="critical">
+          <div>
+            <div class="asev asev-high">🔴 URGENT</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:6px;font-family:'Share Tech Mono',monospace">15 MIN AGO</div>
+          </div>
+          <div class="a-content">
+            <div class="a-loc">D-09 — Market Zone</div>
+            <div class="a-desc">Chemical smell detected at drain. 88% full. Factory waste suspected. Very dangerous for Yamuna river.</div>
+            <div class="a-hindi">रासायनिक बदबू। फैक्ट्री कचरा संदिग्ध। नदी के लिए खतरनाक।</div>
+            <div class="a-meta"><span>📍 Market Zone</span><span>🕐 15 min ago</span><span>⚗️ Chemical alert</span></div>
+          </div>
+          <div class="a-actions">
+            <button class="btn-sm bsm-red" onclick="sendWorker('D-09','Market Zone')">🚀 Send Worker</button>
+            <button class="btn-sm bsm-mute" onclick="markAlertSeen(this)">Mark Seen</button>
+          </div>
+        </div>
+
+        <div class="alert-item" data-severity="medium">
+          <div>
+            <div class="asev asev-medium">🟡 TODAY</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:6px;font-family:'Share Tech Mono',monospace">1 HR AGO</div>
+          </div>
+          <div class="a-content">
+            <div class="a-loc">D-06 — Industrial Area</div>
+            <div class="a-desc">Water is very dirty and smells bad. Bio-enzyme treatment has been started automatically. Monitor for next 30 minutes.</div>
+            <div class="a-hindi">पानी गंदा है। बायो-एंजाइम उपचार शुरू हो गया है।</div>
+            <div class="a-meta"><span>📍 Industrial Area</span><span>🕐 1 hr ago</span><span>🧪 Auto-treatment ON</span></div>
+          </div>
+          <div class="a-actions">
+            <button class="btn-sm bsm-mute" onclick="showPage('phases')">👁 Monitor</button>
+            <button class="btn-sm bsm-mute" onclick="markAlertSeen(this)">Mark Seen</button>
+          </div>
+        </div>
+
+        <div class="alert-item" data-severity="resolved" style="opacity:0.55">
+          <div>
+            <div class="asev asev-low">✅ RESOLVED</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:6px;font-family:'Share Tech Mono',monospace">3 HRS AGO</div>
+          </div>
+          <div class="a-content">
+            <div class="a-loc">D-01 — Sector 3</div>
+            <div class="a-desc">Drain was 75% full. Worker Ram Kumar cleaned it. All 4 phases complete. River safe.</div>
+            <div class="a-meta"><span>✅ Resolved by Ram Kumar</span><span>⏱ 45 min cleaning time</span></div>
+          </div>
+          <div class="a-actions">
+            <button class="btn-sm bsm-mute" onclick="showPage('report')">View Report</button>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /alerts -->
+
+
+    <!-- ═══════════════════════════════
+         PAGE: PHASE TRACKER
+    ═══════════════════════════════ -->
+    <div class="page" id="page-phases">
+      <div class="section-title">Cleaning Progress — All Active Drains</div>
+      <div class="tracker-cards">
+
+        <div class="tracker-card">
+          <div class="tc-hdr">
+            <div>
+              <div class="tc-name">D-04 — Yamuna Nagar, Sector 7</div>
+              <div class="tc-addr">📍 Near Govt School Gate 2 · Started 14 min ago</div>
+            </div>
+            <div class="tc-status tcs-active">🔄 CLEANING</div>
+          </div>
+          <div class="phase-steps">
+            <div class="phase-step ps-done">
+              <div class="phase-circle">🗑️<div class="ps-check">✓</div></div>
+              <div class="phase-name">PHASE 1</div><div class="phase-sub">Solid Waste</div>
+              <div style="font-size:10px;color:var(--green);margin-top:3px;">✅ Done</div>
+            </div>
+            <div class="phase-step ps-active">
+              <div class="phase-circle">💩</div>
+              <div class="phase-name">PHASE 2</div><div class="phase-sub">Human Waste</div>
+              <div style="font-size:10px;color:var(--accent);margin-top:3px;">🔄 Running</div>
+            </div>
+            <div class="phase-step ps-wait">
+              <div class="phase-circle">🧪</div>
+              <div class="phase-name">PHASE 3</div><div class="phase-sub">Bio-Enzyme</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:3px;">⏳ Waiting</div>
+            </div>
+            <div class="phase-step ps-wait">
+              <div class="phase-circle">⚗️</div>
+              <div class="phase-name">PHASE 4</div><div class="phase-sub">Chemical Check</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:3px;">⏳ Waiting</div>
+            </div>
+          </div>
+          <div class="tc-footer">
+            <div class="tc-worker">Worker: <strong>Ram Kumar</strong> · On site</div>
+            <div class="tc-eta">⏱ ~35 min remaining</div>
+          </div>
+        </div>
+
+        <div class="tracker-card">
+          <div class="tc-hdr">
+            <div>
+              <div class="tc-name">D-06 — Industrial Area</div>
+              <div class="tc-addr">📍 Near Factory Gate · Started 45 min ago</div>
+            </div>
+            <div class="tc-status tcs-active">🔄 CLEANING</div>
+          </div>
+          <div class="phase-steps">
+            <div class="phase-step ps-done"><div class="phase-circle">🗑️<div class="ps-check">✓</div></div><div class="phase-name">PHASE 1</div><div class="phase-sub">Solid Waste</div><div style="font-size:10px;color:var(--green);margin-top:3px;">✅ Done</div></div>
+            <div class="phase-step ps-done"><div class="phase-circle">💩<div class="ps-check">✓</div></div><div class="phase-name">PHASE 2</div><div class="phase-sub">Human Waste</div><div style="font-size:10px;color:var(--green);margin-top:3px;">✅ Done</div></div>
+            <div class="phase-step ps-active"><div class="phase-circle">🧪</div><div class="phase-name">PHASE 3</div><div class="phase-sub">Bio-Enzyme</div><div style="font-size:10px;color:var(--accent);margin-top:3px;">🔄 18 min left</div></div>
+            <div class="phase-step ps-wait"><div class="phase-circle">⚗️</div><div class="phase-name">PHASE 4</div><div class="phase-sub">Chemical Check</div><div style="font-size:10px;color:var(--muted);margin-top:3px;">⏳ Waiting</div></div>
+          </div>
+          <div class="tc-footer">
+            <div class="tc-worker">Worker: <strong>Suresh Yadav</strong> · On site</div>
+            <div class="tc-eta">⏱ ~22 min remaining</div>
+          </div>
+        </div>
+
+        <div class="tracker-card" style="border-color:rgba(0,255,136,0.2)">
+          <div class="tc-hdr">
+            <div>
+              <div class="tc-name">D-01 — Sector 3</div>
+              <div class="tc-addr">📍 Near Bus Stand · Completed at 11:30 AM</div>
+            </div>
+            <div class="tc-status tcs-done">✅ COMPLETE</div>
+          </div>
+          <div class="phase-steps">
+            <div class="phase-step ps-done"><div class="phase-circle">🗑️<div class="ps-check">✓</div></div><div class="phase-name">PHASE 1</div><div class="phase-sub">Solid Waste</div><div style="font-size:10px;color:var(--green);margin-top:3px;">✅ Done</div></div>
+            <div class="phase-step ps-done"><div class="phase-circle">💩<div class="ps-check">✓</div></div><div class="phase-name">PHASE 2</div><div class="phase-sub">Human Waste</div><div style="font-size:10px;color:var(--green);margin-top:3px;">✅ Done</div></div>
+            <div class="phase-step ps-done"><div class="phase-circle">🧪<div class="ps-check">✓</div></div><div class="phase-name">PHASE 3</div><div class="phase-sub">Bio-Enzyme</div><div style="font-size:10px;color:var(--green);margin-top:3px;">✅ Done</div></div>
+            <div class="phase-step ps-done"><div class="phase-circle">⚗️<div class="ps-check">✓</div></div><div class="phase-name">PHASE 4</div><div class="phase-sub">Chemical Check</div><div style="font-size:10px;color:var(--green);margin-top:3px;">✅ Safe</div></div>
+          </div>
+          <div class="tc-footer">
+            <div class="tc-worker">Worker: <strong>Mohan Singh</strong> · Task complete</div>
+            <div class="tc-eta" style="color:var(--green)">✅ River-safe confirmed</div>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- /phases -->
+
+
+    <!-- ═══════════════════════════════
+         PAGE: DISPATCH
+         FIX: worker list rendered by JS from real state
+    ═══════════════════════════════ -->
+    <div class="page" id="page-dispatch">
+      <div class="dispatch-grid">
+        <div>
+          <div class="section-title">Available Workers / उपलब्ध कर्मचारी</div>
+          <!-- FIX: populated dynamically by renderWorkerList() -->
+          <div class="workers-list" id="workerList"></div>
+        </div>
+        <div>
+          <div class="section-title">Pending Tasks / लंबित काम</div>
+          <div class="pending-cards">
+            <div class="pending-card">
+              <div class="pc-hdr"><div class="pc-name">D-04 · Yamuna Nagar Sec 7</div><span class="pbadge pb-red">🔴 CRITICAL</span></div>
+              <div class="pc-prob">Drain 94% full. Gate closed. Overflow in 18 min.</div>
+              <div class="pc-hindi">नाली 94% भरी। तुरंत सफाई चाहिए।</div>
+              <button class="action-btn btn-red" style="width:100%;padding:10px;font-size:13px;" onclick="sendWorker('D-04','Yamuna Nagar')">🚀 SEND WORKER NOW</button>
+            </div>
+            <div class="pending-card">
+              <div class="pc-hdr"><div class="pc-name">D-09 · Market Zone</div><span class="pbadge pb-red">🔴 URGENT</span></div>
+              <div class="pc-prob">Drain 88% full. Chemical smell. Dangerous!</div>
+              <div class="pc-hindi">रासायनिक बदबू। फैक्ट्री कचरा संदिग्ध।</div>
+              <button class="action-btn btn-red" style="width:100%;padding:10px;font-size:13px;" onclick="sendWorker('D-09','Market Zone')">🚀 SEND WORKER NOW</button>
+            </div>
+            <div class="pending-card" style="border:1px solid rgba(0,255,136,0.2);background:rgba(0,255,136,0.03)">
+              <div class="pc-hdr"><div class="pc-name">D-01 · Sector 3</div><span class="pbadge pb-green">✅ DONE</span></div>
+              <div class="pc-prob" style="color:var(--green)">All 4 phases complete. Drain is clean. River safe.</div>
+              <div class="sms-tag">✅ Report sent to senior officer automatically</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /dispatch -->
+
+
+    <!-- ═══════════════════════════════
+         PAGE: REPORT
+    ═══════════════════════════════ -->
+    <div class="page" id="page-report">
+      <div class="report-hero">
+        <div class="rh-top">
+          <div>
+            <div class="rh-date" id="reportDate">Today's Report</div>
+            <div class="rh-title">Ward 42 — <span>Daily Summary</span></div>
+          </div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);text-align:right;">
+            Officer: Rajesh Sharma<br>MCD-2024-1042
+          </div>
+        </div>
+        <div class="report-stats">
+          <div class="rs-card"><div class="rs-num">3</div><div class="rs-lbl">Drains Cleaned</div></div>
+          <div class="rs-card"><div class="rs-num">3</div><div class="rs-lbl">Overflows Prevented</div></div>
+          <div class="rs-card"><div class="rs-num" style="color:var(--green)">0</div><div class="rs-lbl">River Breaches</div></div>
+        </div>
+      </div>
+
+      <div class="section-title">Today's Drain Activity</div>
+      <div class="report-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Drain</th><th>Location</th><th>Problem</th>
+              <th>Phase 1<br><span style="font-weight:400">Solid</span></th>
+              <th>Phase 2<br><span style="font-weight:400">Human</span></th>
+              <th>Phase 3<br><span style="font-weight:400">Bio-Enzyme</span></th>
+              <th>Phase 4<br><span style="font-weight:400">Chemical</span></th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><strong style="color:var(--white)">D-01</strong></td><td>Sector 3</td><td>Full drain</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td><td><span class="rbadge rb-done">Resolved</span></td></tr>
+            <tr><td><strong style="color:var(--white)">D-04</strong></td><td>Yamuna Nagar</td><td>Overflow risk</td><td>✅</td><td>🔄</td><td>⏳</td><td>⏳</td><td><span class="rbadge rb-active">In Progress</span></td></tr>
+            <tr><td><strong style="color:var(--white)">D-06</strong></td><td>Industrial</td><td>Dirty water</td><td>✅</td><td>✅</td><td>🔄</td><td>⏳</td><td><span class="rbadge rb-active">In Progress</span></td></tr>
+            <tr><td><strong style="color:var(--white)">D-09</strong></td><td>Market Zone</td><td>Chemical smell</td><td>🔄</td><td>⏳</td><td>⏳</td><td>⏳</td><td><span class="rbadge rb-pending">Pending</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <button class="dl-btn" onclick="showToast('📄 Report downloaded!')">📄 Download PDF Report / रिपोर्ट डाउनलोड करें</button>
+    </div><!-- /report -->
+
+  </div><!-- /content -->
+</div><!-- /layout -->
+</div><!-- /mainApp -->
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span>✅</span><span id="toastMsg">Done!</span>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
